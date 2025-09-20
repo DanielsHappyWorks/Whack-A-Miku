@@ -2,6 +2,7 @@
 #include <vector>
 #include <string>
 #include "miku.h"
+#include "soundManager.h"
 
 Rectangle TextureRectFromPoint(Texture2D texture, Vector2 pos, Vector2 pivotPoint, float scale) {
     Rectangle dest_rect = {pos.x, pos.y, (float)texture.width * scale, (float)texture.height * scale};
@@ -38,12 +39,16 @@ int main() {
 
     std::vector<Miku*> miku = {};
     miku.push_back(new Miku("a", "Hatsune Miku"));
-    miku.push_back(new Miku("b", "Hatsune Miku"));
+    miku.push_back(new Miku("b", "Miku Nakano"));
+    miku.push_back(new Miku("c", "Miku Izayoi"));
+    miku.push_back(new Miku("d", "Miku Hinasaki"));
+    miku.push_back(new Miku("e", "Miku (390)"));
+
 
     int selectedMikuIndex = 0;
     Miku* selectedMiku = miku[selectedMikuIndex];
 
-    bool isDebug = true;
+    bool isDebug = false;
 
     int highScore = 0;
     int score = 0;
@@ -51,6 +56,10 @@ int main() {
     float timeLeft = gameTime;
 
     bool isGameRunning = false;
+
+    //Animates the start text size
+    float startFontSize = 20;
+    int startFontSizeDirection = 1;
 
     std::vector<Vector2*> spawnLocations = {
         new Vector2{475.0f, 290.0f},
@@ -83,16 +92,73 @@ int main() {
     // isMikuThwacked tracks whether the miku at each position has been hit
     std::vector<bool> isMikuThwacked = {false, false, false, false, false};
 
+    std::vector<Vector2> LightBulbPositions = {
+        {140.0f, 32.0f},
+        {147.0f, 124.0f},
+        {156.0f, 216.0f},
+        {1108.0f, 28.0f},
+        {1114.0f, 130.0f},
+        {1113.0f, 214.0f},
+    };
+
+    std::vector<std::vector<bool>> LightBulbPatterns = {
+        {true, false, true, true, false, true,},
+        {false, true, false, false, true, false},
+        {true, false, true, true, false, true,},
+        {true, false, false, true, false, false},
+        {false, true, false, false, true, false},
+        {false, false, true, false, false, true},
+        {false, true, false, false, true, false},
+        {true, false, false, true, false, false},
+    };
+
+    int currentLightBulbPattern = 0;
+    float timePerLightBulbPattern = 0.5f;
+
+    SoundManager::GetInstance()->playMusic(MUSIC_BGM1); // Initialize sound manager and start playing music
+
     //run game loop
     while (WindowShouldClose() == false)
     {
+        SoundManager::GetInstance()->update();
+
         BeginDrawing();
         DrawTextureFromCentre(background, {(float)width/2, (float)height/2}, 1.0f, 0.0f, WHITE);
+
+        //Draw Miku info at the centre of the screen
+        DrawText(selectedMiku->getName().c_str(), GetScreenWidth()/2 - MeasureText(selectedMiku->getName().c_str(), 35)/2, 10, 35, BLACK);
 
         DrawText(TextFormat("%i", highScore), 450, 102, 20, WHITE);
         DrawText(TextFormat("%.2f", timeLeft), 600, 99, 20, WHITE);
         DrawText(TextFormat("%i", score), 725, 99, 20, WHITE);
-        DrawText("START", 1115, 515, 20, BLACK);
+
+        //Draw start button while increasing and decreasing font size using delta time
+        if (!isGameRunning) {
+            startFontSize += startFontSizeDirection * 20 * GetFrameTime();
+            if (startFontSize >= 25) {
+                startFontSizeDirection = -1;
+            } else if (startFontSize <= 20) {
+                startFontSizeDirection = 1;
+            }
+        } else {
+            startFontSize = 20;
+            startFontSizeDirection = 1;
+        }
+        DrawText("START", 1110, 515, startFontSize, BLACK);
+
+        //Draw light bulbs
+        for (size_t i = 0; i < LightBulbPositions.size(); i++) {
+            if (LightBulbPatterns[currentLightBulbPattern][i]) {
+                DrawCircleV(LightBulbPositions[i], 35, { 253, 249, 0, 80 });
+            }
+        }
+
+        //Update light bulb pattern
+        timePerLightBulbPattern -= GetFrameTime();
+        if (timePerLightBulbPattern <= 0) {
+            currentLightBulbPattern = (currentLightBulbPattern + 1) % LightBulbPatterns.size();
+            timePerLightBulbPattern = 0.5f;
+        }
 
         //Draw texture at mouse position
         Vector2 mousePos = GetMousePosition();
@@ -111,6 +177,7 @@ int main() {
         if (CheckCollisionRecs(mouseRect, nextMikuRect) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             selectedMikuIndex = (selectedMikuIndex + 1) % miku.size();
             selectedMiku = miku[selectedMikuIndex];
+            SoundManager::GetInstance()->playSound(SFX_HIT);
         }
 
         //Handle click on an previous miku arrow
@@ -122,6 +189,7 @@ int main() {
         if (CheckCollisionRecs(mouseRect, prevMikuRect) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             selectedMikuIndex = (selectedMikuIndex - 1 + miku.size()) % miku.size();
             selectedMiku = miku[selectedMikuIndex];
+            SoundManager::GetInstance()->playSound(SFX_HIT);
         }
 
         //Handle click on start button
@@ -134,6 +202,7 @@ int main() {
             isGameRunning = true;
             score = 0;
             timeLeft = gameTime;
+            SoundManager::GetInstance()->playSound(SFX_HIT);
         }
 
         bool isAnyMikuPresent = false;
@@ -183,6 +252,7 @@ int main() {
                 score += 10;
                 isMikuThwacked[i] = true;
                 mikuAtPositions[i] = 0.5f; // Despawn the miku after half a second
+                SoundManager::GetInstance()->playSound(SFX_HIT);
             }
         }
 

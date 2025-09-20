@@ -5,22 +5,11 @@
 
 enum Song {
     MUSIC_NULL,
-    MUSIC_DAY,
-    MUSIC_NIGHT,
-    MUSIC_TENSE,
-    MUSIC_SAD,
-    MUSIC_SHINNANIGANS
+    MUSIC_BGM1
 };
 
 enum SFX {
-    SFX_WALK,
-    SFX_MONEY,
-    SFX_ERROR,
-    SFX_BOUNCE,
-    SFX_SWIPE,
-    SFX_CLICK,
-    SFX_DIALOG_MALE,
-    SFX_DIALOG_FEMALE
+    SFX_HIT
 };
 
 class SoundManager {
